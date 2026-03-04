@@ -63,12 +63,41 @@ async function getApiClient() {
 
 /**
  * Pobiera listę produktów (items) z GoPOS.
- * Opcjonalne query params: category_id, page, per_page, etc.
+ * Jeśli ustawiono GOPOS_ITEM_GROUP, zwraca tylko produkty z tej grupy
+ * (filtrowanie po item_group.name lub category.name).
+ * Przy aktywnym filtrze pobiera wszystkie strony automatycznie.
  */
 async function getItems(params = {}) {
   const client = await getApiClient();
-  const response = await client.get('/items', { params });
-  return response.data;
+  const groupFilter = (process.env.GOPOS_ITEM_GROUP || '').trim().toLowerCase();
+
+  if (!groupFilter) {
+    // Bez filtru – zwykłe zapytanie, pierwsza strona
+    const response = await client.get('/items', { params });
+    return response.data;
+  }
+
+  // Z filtrem: pobierz wszystkie strony, potem odfiltruj
+  let allItems = [];
+  let page = 1;
+
+  while (true) {
+    const response = await client.get('/items', { params: { ...params, page, per_page: 100 } });
+    const body = response.data;
+    const pageItems = Array.isArray(body) ? body : (body.data || []);
+    allItems = allItems.concat(pageItems);
+
+    const meta = body.meta || body.pagination;
+    const lastPage = meta?.last_page || meta?.total_pages || 1;
+    if (page >= lastPage || pageItems.length < 100) break;
+    page++;
+  }
+
+  return allItems.filter((item) => {
+    const groupName  = (item.item_group?.name || item.group?.name || '').toLowerCase();
+    const catName    = (item.category?.name || '').toLowerCase();
+    return groupName === groupFilter || catName === groupFilter;
+  });
 }
 
 /**

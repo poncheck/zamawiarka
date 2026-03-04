@@ -39,33 +39,15 @@ function hideMessage() {
 // ===== Widoki =====
 
 function showView(viewId) {
-  ['loading', 'items-grid', 'categories-nav', 'cart-section', 'confirmation-section'].forEach((id) => {
+  ['loading', 'items-grid', 'cart-section', 'confirmation-section'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
   const target = document.getElementById(viewId);
   if (target) target.style.display = '';
-
-  // Kategorie pokazujemy razem z griddem
-  if (viewId === 'items-grid') {
-    document.getElementById('categories-nav').style.display = 'flex';
-  }
 }
 
 // ===== Ładowanie danych =====
-
-async function loadCategories() {
-  try {
-    const resp = await fetch(API.categories);
-    if (!resp.ok) return;
-    const data = await resp.json();
-    // GoPOS może zwracać { data: [...] } lub bezpośrednio tablicę
-    state.categories = Array.isArray(data) ? data : (data.data || []);
-    renderCategories();
-  } catch (e) {
-    console.warn('Nie udało się pobrać kategorii:', e.message);
-  }
-}
 
 async function loadItems(categoryId = null) {
   showView('loading');
@@ -90,31 +72,6 @@ async function loadItems(categoryId = null) {
 }
 
 // ===== Renderowanie =====
-
-function renderCategories() {
-  const nav = document.getElementById('categories-nav');
-  // Zachowaj przycisk "Wszystkie"
-  const allBtn = nav.querySelector('[data-id=""]');
-  nav.innerHTML = '';
-  nav.appendChild(allBtn);
-
-  state.categories.forEach((cat) => {
-    const btn = document.createElement('button');
-    btn.className = 'category-btn';
-    btn.dataset.id = cat.id;
-    btn.textContent = cat.name;
-    btn.addEventListener('click', () => filterByCategory(cat.id));
-    nav.appendChild(btn);
-  });
-}
-
-function filterByCategory(id) {
-  state.activeCategory = id || null;
-  document.querySelectorAll('.category-btn').forEach((btn) => {
-    btn.classList.toggle('active', String(btn.dataset.id) === String(id || ''));
-  });
-  loadItems(id || null);
-}
 
 function renderItems() {
   const grid = document.getElementById('items-grid');
@@ -319,12 +276,8 @@ document.getElementById('btn-new-order').addEventListener('click', () => {
   showView('items-grid');
 });
 
-// Przycisk "Wszystkie" w nawigacji kategorii
-document.querySelector('[data-id=""]').addEventListener('click', () => filterByCategory(null));
-
 // ===== Init =====
 
 (async () => {
-  await loadCategories();
   await loadItems();
 })();
